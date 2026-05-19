@@ -6,7 +6,8 @@ Projeto desenvolvido para a disciplina **Banco de Dados** da FIAP — curso de I
 Dá continuidade ao sistema de irrigação inteligente da **Fase 2** ([leticiael/Farmtech-ESP32-](https://github.com/leticiael/Farmtech-ESP32-)), persistindo as leituras dos sensores do ESP32 em um banco **Oracle** e explorando os dados por meio de consultas SQL.
 
 Repositório da Fase 2: [github.com/leticiael/Farmtech-ESP32-](https://github.com/leticiael/Farmtech-ESP32-)
-Vídeo demonstrativo (≤ 5 min): _adicionar link do YouTube aqui_
+Vídeo demonstrativo (≤ 5 min): [Vídeo demonstrativo do dashboard](https://www.youtube.com/watch?v=WqOEoQaPj4g)
+Site hospedado: [https://araucaria.streamlit.app/](https://araucaria.streamlit.app/)
 
 ---
 
@@ -458,6 +459,8 @@ O script salva o CSV no diretório em que for executado e imprime a distribuiç�
 
 ## Ir Além 1 — Dashboard interativo
 
+> **Acesso online:** [araucaria.streamlit.app](https://araucaria.streamlit.app/) — a dashboard está **hospedada no Streamlit Community Cloud**, gratuitamente. Não é preciso instalar nada para abrir e interagir; basta clicar no link. A integração com a OpenWeather (Tab "Tempo Real") puxa a previsão de Curitiba/PR em tempo real direto do servidor.
+
 Entrega opcional do "Programa Ir Além". Uma dashboard em **Streamlit** que consome o CSV das 100 leituras da Fase 2 e integra com a **API OpenWeather** em tempo real para recomendar irrigação considerando a previsão do tempo de Curitiba/PR. Fecha o gap apontado pelo professor na Fase 2, em que a integração com Python ficou "conceitual" — agora a regra do firmware é reproduzida e combinada com clima ao vivo num único lugar interativo.
 
 ### Visão geral
@@ -508,35 +511,58 @@ A regra de irrigação aparece em **quatro lugares**, todos sincronizados:
 
 A Tab Tempo Real ainda combina essa regra com o módulo `weather.py` (OpenWeather), produzindo a decisão final híbrida — exatamente o que o opcional 1 da Fase 2 sugeria mas executava manualmente.
 
-### Prints da interface
+### Walkthrough das telas
 
-Salve em `iralem1_dashboard/prints/` com os nomes abaixo. Cinco prints de desktop e dois de mobile (DevTools → toggle device toolbar → iPhone 12 Pro ou Pixel 5).
+Cinco prints de desktop e dois de mobile, salvos em `iralem1_dashboard/prints/`. Em vez de listar e despejar, cada captura está embutida abaixo junto com o insight que ela acrescenta sobre as 100 leituras da Fase 2.
 
-| Arquivo | Conteúdo |
-| --- | --- |
-| `dash_01_visao_geral.png` | Tab "Visão Geral" desktop: 4 KPIs + gráfico de série temporal. |
-| `dash_02_sensores.png` | Tab "Sensores" desktop: 4 gráficos (umidade+temperatura, timeline da bomba, pH, NPK heatmap). |
-| `dash_03_diagnostico.png` | Tab "Diagnóstico" desktop: KPIs + donut com `% solo saudável` + timeline de alertas + tabela. |
-| `dash_04_tempo_real.png` | Tab "Tempo Real" desktop: previsão OpenWeather de Curitiba + simulador "Irrigar agora?". |
-| `dash_05_simulador_decisoes.png` | Close-up dos três estados do simulador (IRRIGAR / SUSPENDER / NÃO IRRIGAR). Mexa nos sliders para reproduzir cada estado. |
-| `dash_06_mobile_geral.png` | Tab "Visão Geral" em viewport mobile (375px) mostrando o layout adaptado. |
-| `dash_07_mobile_diagnostico.png` | Tab "Diagnóstico" em viewport mobile com donut e timeline empilhados verticalmente. |
+#### `dash_01_visao_geral.png` — Tab "Visão Geral"
 
-> Para abrir o DevTools no navegador: `F12` → ícone de "toggle device toolbar" (ou `Ctrl+Shift+M`) → escolha "iPhone 12 Pro" no dropdown superior → `Ctrl+F5` para recarregar.
+Os quatro KPIs no topo (total de leituras, umidade média, temperatura média, % de irrigações) resumem o regime do viveiro em uma linha — é o equivalente visual da Consulta 2. O gráfico de série temporal abaixo plota umidade e temperatura com **bandas dos limiares do firmware** sobrepostas (faixa coral em 0–60% para "solo seco" e faixa azul em 75–100% para "encharcado"), de modo que cada vez que a curva de umidade cruza a linha de 60% fica visível o motivo do acionamento da bomba.
 
 ![Tab Visão Geral](iralem1_dashboard/prints/dash_01_visao_geral.png)
+
+#### `dash_02_sensores.png` — Tab "Sensores"
+
+Quatro gráficos detalhados, um por grupo de sensores. A **timeline da bomba** (barras verticais ON/OFF) é a mais reveladora: cada barra cai exatamente no vale de umidade do gráfico imediatamente acima, comprovando visualmente o que a Consulta 7 mostra estatisticamente — que a bomba liga quando umidade < 60%. O painel de pH destaca a faixa ideal `[5, 7]` em verde, e o heatmap NPK mostra a depleção e a reposição manual dos nutrientes ao longo das 50 horas.
+
 ![Tab Sensores](iralem1_dashboard/prints/dash_02_sensores.png)
+
+#### `dash_03_diagnostico.png` — Tab "Diagnóstico"
+
+Reproduz visualmente o `CASE WHEN` da Consulta 8: o donut classifica as 100 leituras nas 5 condições agronômicas, com o **% de solo saudável** no centro. A timeline ao lado mostra **quando** cada alerta aconteceu — o cluster de "Solo encharcado" concentrado na madrugada do dia 2 salta aos olhos, algo que a consulta SQL só revelava ordenando por `DATA_LEITURA`. A tabela abaixo lista as 28 leituras com alerta para inspeção pontual.
+
 ![Tab Diagnóstico](iralem1_dashboard/prints/dash_03_diagnostico.png)
+
+#### `dash_04_tempo_real.png` — Tab "Tempo Real"
+
+A tab que **estende** a Fase 3 para além do dataset histórico: cards horizontais com a previsão OpenWeather das próximas 12 h para Curitiba/PR + simulador "Irrigar agora?" com sliders e toggles para cada sensor. É aqui que a regra do firmware encontra o clima ao vivo — fecha o opcional 1 da Fase 2, que ficou conceitual à época.
+
 ![Tab Tempo Real](iralem1_dashboard/prints/dash_04_tempo_real.png)
+
+#### `dash_05_simulador_decisoes.png` — Três estados do simulador
+
+Captura composta dos três veredictos possíveis, lado a lado:
+
+- **IRRIGAR** (verde) — solo seco, pH dentro da faixa, fósforo presente, sem chuva prevista.
+- **SUSPENDER** (laranja) — todas as condições do firmware satisfeitas, **mas** a previsão indica chuva nas próximas 12 h → a dashboard recomenda esperar.
+- **NÃO IRRIGAR** (vermelho) — alguma condição do firmware falha (encharcamento, pH fora, fósforo ausente, ou N e K simultaneamente zerados).
+
+A categoria **SUSPENDER** só existe na camada Python — o firmware sozinho só conhece IRRIGAR / NÃO IRRIGAR. É o ganho concreto da dashboard sobre o ESP32 isolado.
+
 ![Simulador — três estados](iralem1_dashboard/prints/dash_05_simulador_decisoes.png)
+
+#### `dash_06_mobile_geral.png` e `dash_07_mobile_diagnostico.png` — Layout responsivo
+
+Abaixo de 768 px, um bloco de `@media` no CSS do `app.py` força `flex-direction: column` nos containers de colunas do Streamlit: os 4 KPIs deixam de ficar lado a lado e empilham um por linha em largura total, e na tab Diagnóstico o donut e a timeline também empilham verticalmente. Os gráficos preservam a proporção porque foram criados com `width="stretch"` e sem largura fixa no `charts.py`.
+
 ![Mobile — Visão Geral](iralem1_dashboard/prints/dash_06_mobile_geral.png)
 ![Mobile — Diagnóstico](iralem1_dashboard/prints/dash_07_mobile_diagnostico.png)
 
+> Para reproduzir os prints mobile: `F12` → `Ctrl+Shift+M` → escolha "iPhone 12 Pro" no dropdown → `Ctrl+F5` para recarregar.
+
 ### Vídeo demonstrativo do dashboard
 
-_Adicionar link do YouTube aqui (até 5 min)._
-
----
+https://www.youtube.com/watch?v=WqOEoQaPj4g---
 
 ## Créditos
 

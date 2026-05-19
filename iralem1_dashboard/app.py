@@ -10,6 +10,8 @@ from src.charts import (
     heatmap_npk,
     donut_distribuicao,
     timeline_alertas,
+    radar_estado_atual,
+    CONFIG_GRAFICO,
 )
 from src.weather import API_KEY, buscar_previsao, chuva_prevista
 from src.decisao import decisao_firmware, decisao_final
@@ -113,6 +115,19 @@ div[data-testid="stPlotlyChart"]:hover {
 }
 
 h1, h2, h3, h4 { color: #F0F2EE; font-weight: 600; }
+.app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.app-header .title-text { min-width: 0; }
+.app-header h1 { margin-bottom: 0.35rem; line-height: 1.05; }
+.app-header p { color: #B9C5B5; font-size: 1rem; margin: 0; max-width: 42rem; }
+.title-svg { width: 220px; max-width: 220px; min-width: 140px; }
+.title-svg svg { width: 100%; height: auto; display: block; }
+
 h1 {
     letter-spacing: -0.02em;
     margin-bottom: 0.4rem;
@@ -252,6 +267,7 @@ div[data-testid="stAlert"] {
         padding-top: 1.8rem;
     }
     h1 { font-size: 1.7rem; }
+    .title-svg { width: 180px; max-width: 180px; }
     [data-testid="stMetricValue"] { font-size: 1.7rem !important; }
 }
 
@@ -262,6 +278,9 @@ div[data-testid="stAlert"] {
         padding-top: 1.4rem;
         padding-bottom: 3rem;
     }
+    .app-header { grid-template-columns: 1fr; gap: 1rem; }
+    .title-svg { width: 140px; max-width: 140px; margin: 0 auto; }
+    .app-header p { font-size: 0.98rem; }
     h1 { font-size: 1.5rem; }
     h3 { font-size: 1rem; }
     [data-testid="stMetric"] { padding: 16px 18px; }
@@ -299,6 +318,137 @@ div[data-testid="stAlert"] {
 """
 
 st.markdown(_CSS, unsafe_allow_html=True)
+
+
+# -----------------------------------------------------------------------------
+# Textos auxiliares — extraidos dos blocos `with` para nao poluir o layout.
+# Convencao: _HELP_* para tooltips dos KPIs, _CAP_* para captions dos graficos.
+# -----------------------------------------------------------------------------
+
+_HELP_LEITURAS_JANELA = (
+    "Quantas amostras do CSV estao dentro do periodo selecionado na barra "
+    "lateral. O dataset completo tem 100 leituras (~50h de operacao)."
+)
+_HELP_UMIDADE_MEDIA = (
+    "Media aritmetica da umidade do solo. Referencia: abaixo de 60% o "
+    "firmware considera solo seco; acima de 75% considera encharcado."
+)
+_HELP_TEMP_MEDIA = (
+    "Media da temperatura do ar. Em Curitiba/PR no outono, a faixa esperada "
+    "vai de ~12°C de madrugada a ~26°C no inicio da tarde."
+)
+_HELP_BOMBA_LIGADA = (
+    "Fracao das leituras com IRRIGOU = 1 — ou seja, em quantas amostras o "
+    "firmware decidiu acionar a bomba. No dataset completo o esperado e ~39%."
+)
+_HELP_LEITURAS_TOTAIS = (
+    "Total de amostras na janela. Cada uma e classificada em UMA das 5 "
+    "condicoes agronomicas — soma das 5 = total."
+)
+_HELP_SOLO_SAUDAVEL = (
+    "Fracao em que o solo estava OK do ponto de vista agronomico "
+    "(categorias 'Solo seco - irrigar' + 'Umidade adequada'). "
+    "100% - este valor = % com alerta."
+)
+_HELP_COM_ALERTA = (
+    "Leituras que cairam em pH fora da faixa, solo encharcado ou fosforo "
+    "ausente. No dataset completo o esperado e 11 + 10 + 7 = 28 alertas."
+)
+_HELP_BOMBA_ACIONADA = (
+    "Leituras com IRRIGOU = 1. Pode ser MENOR que o numero de 'Solo seco - "
+    "irrigar' do donut: quando faltam N e K simultaneamente, o solo esta "
+    "seco mas a bomba nao liga."
+)
+
+_CAP_VISAO_SERIE = (
+    "Como ler: a curva azul (umidade do solo, escala da esquerda) cai "
+    "quando o solo seca, sobe quando chove ou irriga. A faixa coral "
+    "embaixo (0–60%) marca a zona em que o firmware considera o solo "
+    "seco; a faixa azul no topo (75–100%) marca a zona de "
+    "encharcamento. A curva laranja (temperatura do ar) segue o ciclo "
+    "diurno e nao depende da bomba."
+)
+_CAP_SENSORES_INTRO = (
+    "Tudo o que o ESP32 mediu, separado em quatro graficos. Use esta "
+    "tab quando quiser **investigar o porque** de uma decisao — cada "
+    "painel responde a uma pergunta diferente."
+)
+_CAP_SENSORES_UMID = (
+    "**Pergunta:** o solo esta dentro da faixa ideal? "
+    "Bandas marcam os limiares do firmware — abaixo de 60% (coral) "
+    "o solo esta seco e candidato a irrigacao; acima de 75% (azul) "
+    "esta encharcado e a bomba e bloqueada por seguranca."
+)
+_CAP_SENSORES_BOMBA = (
+    "**Pergunta:** quando a bomba ligou? Cada barra e uma leitura. "
+    "Verde = bomba ligada (IRRIGOU = 1), coral = desligada (IRRIGOU = 0). "
+    "Compare com o painel acima: as barras verdes caem nos vales da "
+    "curva de umidade, confirmando a regra `umidade < 60%`."
+)
+_CAP_SENSORES_PH = (
+    "**Pergunta:** a acidez ficou adequada? A faixa verde marca "
+    "o intervalo `[5, 7]` aceito pelo firmware. Picos fora dessa "
+    "faixa bloqueiam a bomba — mesmo com o solo seco."
+)
+_CAP_SENSORES_NPK = (
+    "**Pergunta:** os nutrientes estavam disponiveis? Verde = "
+    "presente, escuro = ausente. O fosforo (linha do meio) e "
+    "obrigatorio; N e K sao complementares — basta um dos dois."
+)
+_CAP_DIAG_DONUT = (
+    "**Como ler:** cada fatia e uma das 5 condicoes agronomicas. "
+    "O numero no centro e o **% de solo saudavel** (verde + cinza). "
+    "Mesma logica do `CASE WHEN` da Consulta 8 (`consultas.sql`): "
+    "pH > encharcamento > fosforo > umidade seca > umidade "
+    "adequada — cada leitura recebe a **primeira** condicao que se aplica."
+)
+_CAP_DIAG_RADAR = (
+    "**Como ler:** snapshot da **ultima leitura** da janela, com cada "
+    "eixo normalizado em 0-100. A linha verde mostra o estado atual; "
+    "a pontilhada e o ideal — quanto mais a forma verde cobrir a "
+    "pontilhada, melhor."
+)
+_CAP_DIAG_TIMELINE = (
+    "**Como ler:** cada marcador e uma leitura com alerta, "
+    "posicionada na hora em que ocorreu (eixo X) e na sua categoria "
+    "(eixo Y). Clusters horizontais revelam **periodos criticos** — "
+    "p. ex., 'Solo encharcado' concentrado na madrugada do dia 2 "
+    "indica chuva pontual, nao falha do sensor."
+)
+_CAP_DIAG_TABELA = (
+    "Apenas as linhas em que **um criterio agronomico foi violado**. "
+    "A cor de fundo da celula 'condicao' indica o tipo: vermelho = pH, "
+    "azul = encharcado, rosa = fosforo. Coluna `irrigou` aqui deve "
+    "ser sempre 0 — se aparecer 1, e bug."
+)
+_CAP_REALTIME_PREVISAO = (
+    "**Como ler:** quatro cards, um por slot de 3 horas, cobrindo as "
+    "proximas 12 h em Curitiba/PR. A linha **Chuva** mostra a "
+    "probabilidade (POP) — quando passa de 50%, o card ganha borda "
+    "azul para sinalizar risco. A decisao logo abaixo usa o **maior** "
+    "POP da janela e a **soma** de mm previstos para decidir se "
+    "suspende a irrigacao. Cache de 10 min na chamada da API."
+)
+_CAP_REALTIME_SIM = (
+    "**Como funciona:** voce ajusta as condicoes atuais do solo "
+    "(esquerda) e a dashboard combina a regra do `sketch.ino` com a "
+    "previsao acima para devolver um de tres veredictos: "
+    "**IRRIGAR** (verde — firmware libera + nao vai chover), "
+    "**SUSPENDER** (laranja — firmware libera, mas vai chover, entao "
+    "economiza agua) ou **NAO IRRIGAR** (vermelho — alguma condicao "
+    "agronomica falha). A categoria SUSPENDER nao existe no firmware "
+    "original; e o ganho da camada Python."
+)
+
+
+def _renderizar_grafico(fig, chave: str) -> None:
+    """Plota um grafico Plotly com a config padrao da dashboard."""
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config=CONFIG_GRAFICO,
+        key=chave,
+    )
 
 
 df = carregar_leituras()
@@ -341,12 +491,33 @@ with st.sidebar:
         st.warning("Nenhuma leitura na janela.")
 
 
-st.title("Painel da Araucaria")
+# ---------------------------------------------------------------------------
+# Cabecalho com SVG ilustrativo da araucaria carregado de arquivo externo
+# (assets/araucaria.svg) — evita poluir o app.py com path data gigante.
+# ---------------------------------------------------------------------------
+from pathlib import Path
+
+_SVG_PATH = Path(__file__).resolve().parent / "assets" / "araucaria.svg"
+try:
+    _SVG_ARAUCARIA = _SVG_PATH.read_text(encoding="utf-8")
+except Exception:
+    _SVG_ARAUCARIA = ""
+
 st.markdown(
-    "Sistema de irrigacao inteligente para mudas de *Araucaria angustifolia*. "
-    "Dados dos sensores do ESP32 monitorados na Fase 2."
+    f"""
+    <div class="app-header">
+        <div class="title-text">
+            <h1>Painel da Araucaria</h1>
+            <p>Sistema de irrigacao inteligente para mudas de
+            <em>Araucaria angustifolia</em>. Dados dos sensores do ESP32
+            monitorados na Fase 2.</p>
+        </div>
+        <div class="title-svg">{_SVG_ARAUCARIA}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.markdown("")
+
 
 tab_visao, tab_sensores, tab_diag, tab_realtime = st.tabs(
     ["Visao Geral", "Sensores", "Diagnostico", "Tempo Real"]
@@ -362,69 +533,43 @@ with tab_visao:
         pct_irr = 100 * df_view["irrigou"].sum() / len(df_view)
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Leituras", f"{len(df_view)}")
-        c2.metric("Umidade media (%)", f"{umid:.1f}")
-        c3.metric("Temperatura (°C)", f"{temp:.1f}")
-        c4.metric("Irrigacoes ativas (%)", f"{pct_irr:.0f}")
+        c1.metric("Leituras", f"{len(df_view)}", help=_HELP_LEITURAS_JANELA)
+        c2.metric("Umidade media (%)", f"{umid:.1f}", help=_HELP_UMIDADE_MEDIA)
+        c3.metric("Temperatura (°C)", f"{temp:.1f}", help=_HELP_TEMP_MEDIA)
+        c4.metric("Irrigacoes ativas (%)", f"{pct_irr:.0f}", help=_HELP_BOMBA_LIGADA)
 
         st.markdown("")
         st.markdown("---")
         st.subheader("Serie temporal — visao rapida")
-        st.caption(
-            "Faixa coral abaixo de 60% indica solo seco; faixa azul acima "
-            "de 75% indica solo encharcado."
-        )
-        st.plotly_chart(
-            serie_umidade_temperatura(df_view),
-            use_container_width=True,
-            key="visao_serie",
-        )
+        st.caption(_CAP_VISAO_SERIE)
+        _renderizar_grafico(serie_umidade_temperatura(df_view), "visao_serie")
 
 
 with tab_sensores:
     if not len(df_view):
         st.info("Ajuste a janela temporal na barra lateral.")
     else:
+        st.caption(_CAP_SENSORES_INTRO)
+
         st.subheader("Umidade e temperatura do solo")
-        st.caption(
-            "Bandas destacam os limiares do firmware: <60% solo seco; "
-            ">75% solo encharcado."
-        )
-        st.plotly_chart(
-            serie_umidade_temperatura(df_view),
-            use_container_width=True,
-            key="sensores_serie",
-        )
+        st.caption(_CAP_SENSORES_UMID)
+        _renderizar_grafico(serie_umidade_temperatura(df_view), "sensores_serie")
 
         st.markdown("")
         st.subheader("Acionamento da bomba")
-        st.caption(
-            "Cada barra representa uma leitura: verde quando a bomba estava "
-            "ligada, coral quando estava desligada."
-        )
-        st.plotly_chart(
-            timeline_bomba(df_view),
-            use_container_width=True,
-            key="sensores_timeline",
-        )
+        st.caption(_CAP_SENSORES_BOMBA)
+        _renderizar_grafico(timeline_bomba(df_view), "sensores_timeline")
 
         st.markdown("")
         col_ph, col_npk = st.columns(2)
         with col_ph:
             st.subheader("pH do solo")
-            st.caption("Faixa verde marca o intervalo ideal para a araucaria (5 a 7).")
-            st.plotly_chart(
-                serie_ph(df_view), use_container_width=True, key="sensores_ph"
-            )
+            st.caption(_CAP_SENSORES_PH)
+            _renderizar_grafico(serie_ph(df_view), "sensores_ph")
         with col_npk:
             st.subheader("Nutrientes ao longo do tempo")
-            st.caption(
-                "Quadrados verdes indicam presenca do nutriente; "
-                "celulas escuras indicam ausencia."
-            )
-            st.plotly_chart(
-                heatmap_npk(df_view), use_container_width=True, key="sensores_npk"
-            )
+            st.caption(_CAP_SENSORES_NPK)
+            _renderizar_grafico(heatmap_npk(df_view), "sensores_npk")
 
 
 with tab_diag:
@@ -444,44 +589,32 @@ with tab_diag:
         pct_saudavel = 100 * n_saudavel / n_total if n_total else 0
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Leituras totais", f"{n_total}")
-        c2.metric("Solo saudavel (%)", f"{pct_saudavel:.0f}")
-        c3.metric("Com alerta", f"{n_alerta}")
-        c4.metric("Bomba acionada", f"{n_irrigou}")
+        c1.metric("Leituras totais", f"{n_total}", help=_HELP_LEITURAS_TOTAIS)
+        c2.metric("Solo saudavel (%)", f"{pct_saudavel:.0f}", help=_HELP_SOLO_SAUDAVEL)
+        c3.metric("Com alerta", f"{n_alerta}", help=_HELP_COM_ALERTA)
+        c4.metric("Bomba acionada", f"{n_irrigou}", help=_HELP_BOMBA_ACIONADA)
 
         st.markdown("")
         st.markdown("---")
 
-        col_donut, col_timeline = st.columns([1, 1.3])
+        col_donut, col_radar = st.columns([1, 1])
         with col_donut:
             st.subheader("Distribuicao por condicao")
-            st.caption(
-                "Mesma logica do CASE WHEN da Consulta 8 (consultas.sql): "
-                "pH > encharcamento > fosforo > umidade seca > umidade adequada."
-            )
-            st.plotly_chart(
-                donut_distribuicao(contagens),
-                use_container_width=True,
-                key="diag_donut",
-            )
-        with col_timeline:
-            st.subheader("Quando os alertas aconteceram")
-            st.caption(
-                "Cada marcador eh uma leitura com alerta. Permite ver se os "
-                "problemas se concentraram ou se distribuiram no periodo."
-            )
-            st.plotly_chart(
-                timeline_alertas(df_clas),
-                use_container_width=True,
-                key="diag_timeline",
-            )
+            st.caption(_CAP_DIAG_DONUT)
+            _renderizar_grafico(donut_distribuicao(contagens), "diag_donut")
+        with col_radar:
+            st.subheader("Estado atual dos sensores")
+            st.caption(_CAP_DIAG_RADAR)
+            _renderizar_grafico(radar_estado_atual(df_clas), "diag_radar")
+
+        st.markdown("")
+        st.subheader("Quando os alertas aconteceram")
+        st.caption(_CAP_DIAG_TIMELINE)
+        _renderizar_grafico(timeline_alertas(df_clas), "diag_timeline")
 
         st.markdown("---")
         st.subheader("Leituras com alerta")
-        st.caption(
-            "Apenas as leituras em que um criterio agronomico foi violado. "
-            "Cor da celula 'condicao' destaca o tipo de alerta."
-        )
+        st.caption(_CAP_DIAG_TABELA)
 
         df_alerta = df_clas[df_clas["condicao"].isin(classes_alerta)].copy()
         if len(df_alerta) == 0:
@@ -504,7 +637,7 @@ with tab_diag:
             styled = df_alerta.style.map(_pintar_condicao, subset=["condicao"]).format(
                 {"umidade": "{:.1f}"}
             )
-            st.dataframe(styled, use_container_width=True, hide_index=True)
+            st.dataframe(styled, width="stretch", hide_index=True)
 
 
 with tab_realtime:
@@ -518,16 +651,13 @@ with tab_realtime:
     previsao = buscar_previsao(horas=12)
 
     st.subheader("Previsao do tempo — Curitiba/PR")
+    st.caption(_CAP_REALTIME_PREVISAO)
     if previsao is None or not previsao["slots"]:
         st.info(
             "Sem dados de previsao no momento. Verifique se a chave da API "
             "esta ativa e tem cota disponivel."
         )
     else:
-        st.caption(
-            "Cidade de referencia do viveiro. Slots de 3 em 3 horas, "
-            "ate as proximas 12 horas. Atualizado a cada 10 minutos."
-        )
         cols = st.columns(len(previsao["slots"]))
         for col, slot in zip(cols, previsao["slots"]):
             with col:
@@ -549,10 +679,7 @@ with tab_realtime:
 
     st.markdown("---")
     st.subheader("Simulador — Irrigar agora?")
-    st.caption(
-        "Ajuste as condicoes atuais do solo. A recomendacao combina a regra "
-        "do firmware (sketch.ino) com a previsao do tempo acima."
-    )
+    st.caption(_CAP_REALTIME_SIM)
 
     col_inputs, col_resultado = st.columns([1, 1])
 

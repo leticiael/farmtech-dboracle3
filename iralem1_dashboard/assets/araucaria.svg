@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <defs>
+    <linearGradient id="trunk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5C3A21"/>
+      <stop offset="1" stop-color="#3D2817"/>
+    </linearGradient>
+    <linearGradient id="canopy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A8D77E"/>
+      <stop offset="1" stop-color="#3F6E26"/>
+    </linearGradient>
+    <linearGradient id="canopy2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8FCB68"/>
+      <stop offset="1" stop-color="#356520"/>
+    </linearGradient>
+  </defs>
+  <!-- chao -->
+  <ellipse cx="60" cy="132" rx="30" ry="3" fill="rgba(126,188,90,0.18)"/>
+  <!-- tronco -->
+  <path d="M55 130 Q57 115 58 95 Q59 75 60 50 Q61 75 62 95 Q63 115 65 130 Z" fill="url(#trunk)"/>
+  <!-- canopy: 4 niveis estilo araucaria, do menor (topo) ao maior (base) -->
+  <path d="M60 14 L74 36 L66 35 L78 52 L70 50 L82 66 L38 66 L50 50 L42 52 L54 35 L46 36 Z" fill="url(#canopy)"/>
+  <path d="M60 38 L80 64 L70 62 L86 82 L34 82 L50 62 L40 64 Z" fill="url(#canopy2)" opacity="0.95"/>
+  <path d="M60 62 L86 92 L74 90 L92 110 L28 110 L46 90 L34 92 Z" fill="url(#canopy)" opacity="0.95"/>
+  <!-- highlights -->
+  <path d="M60 14 L66 28 L60 26 Z" fill="#C8EAA0" opacity="0.7"/>
+  <path d="M60 38 L68 52 L60 50 Z" fill="#B8DE92" opacity="0.5"/>
+</svg>
