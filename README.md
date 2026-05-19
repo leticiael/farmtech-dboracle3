@@ -5,7 +5,6 @@
 Projeto desenvolvido para a disciplina **Banco de Dados** da FIAP — curso de IA, Fase 3.
 Dá continuidade ao sistema de irrigação inteligente da **Fase 2** ([leticiael/Farmtech-ESP32-](https://github.com/leticiael/Farmtech-ESP32-)), persistindo as leituras dos sensores do ESP32 em um banco **Oracle** e explorando os dados por meio de consultas SQL.
 
-Repositório da Fase 2: [github.com/leticiael/Farmtech-ESP32-](https://github.com/leticiael/Farmtech-ESP32-)
 Vídeo demonstrativo (≤ 5 min): [Vídeo demonstrativo do dashboard](https://www.youtube.com/watch?v=WqOEoQaPj4g)
 Site hospedado: [https://araucaria.streamlit.app/](https://araucaria.streamlit.app/)
 
