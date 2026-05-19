@@ -29,7 +29,7 @@ Na Fase 2, um **ESP32** monitorava os sensores e acionava o relé da bomba quand
 N:1 P:1 K:1 | pH: 5 | umid:50.0% temp:24.0C | bomba:ON
 ```
 
-O firmware original (`src/sketch.ino`) é mantido aqui sem alterações, como referência do _ground truth_ que originou os dados. A regra de irrigação foi reproduzida fielmente no script Python que gera o dataset desta fase.
+O firmware original (`firmware/sketch.ino`) é mantido aqui sem alterações, como referência do _ground truth_ que originou os dados. A regra de irrigação foi reproduzida fielmente no script Python que gera o dataset desta fase.
 
 ---
 
@@ -43,7 +43,7 @@ farmtech-db-oracle/
 ├── scripts/
 │   ├── gerar_dados.py               # Gera o CSV reproduzindo a lógica do sketch
 │   └── consultas.sql                # CREATE TABLE + 10 consultas analíticas
-├── src/
+├── firmware/
 │   └── sketch.ino                   # Firmware da Fase 2 (referência)
 ├── iralem1_dashboard/               # Ir Além 1 — Dashboard interativo (Streamlit)
 │   ├── app.py
@@ -60,7 +60,7 @@ farmtech-db-oracle/
 | `dados/dados_sensores_fase2.csv` | Dataset que alimenta a tabela `SENSORES_ARAUCARIA`. |
 | `scripts/gerar_dados.py` | Recria o CSV de forma reprodutível. Sem dependências externas. |
 | `scripts/consultas.sql` | Cria a tabela e executa as 10 consultas analíticas. |
-| `src/sketch.ino` | Cópia exata do firmware da Fase 2, para referência cruzada da lógica. |
+| `firmware/sketch.ino` | Cópia exata do firmware da Fase 2, para referência cruzada da lógica. |
 | `prints/` | Pasta destinada às evidências do banco em execução. |
 | `iralem1_dashboard/` | Dashboard Streamlit que consome o CSV + integra OpenWeather. Detalhes na seção [Ir Além 1](#ir-além-1--dashboard-interativo). |
 
@@ -85,7 +85,7 @@ O arquivo `dados/dados_sensores_fase2.csv` contém **100 leituras** simuladas, c
 
 ### Lógica de irrigação (pseudocódigo)
 
-A coluna `irrigou` é calculada por uma função que **replica bit a bit** a regra do firmware (`src/sketch.ino`):
+A coluna `irrigou` é calculada por uma função que **replica bit a bit** a regra do firmware (`firmware/sketch.ino`):
 
 ```
 LIGA bomba SE:
@@ -453,7 +453,7 @@ O script salva o CSV no diretório em que for executado e imprime a distribuiç�
 
 ### 3. Conferir contra o firmware
 
-`src/sketch.ino` é a referência da regra de irrigação. Comparar a função `calcula_irrigou()` em `gerar_dados.py` com o trecho de decisão do `loop()` no `.ino` é um bom exercício de coerência.
+`firmware/sketch.ino` é a referência da regra de irrigação. Comparar a função `calcula_irrigou()` em `gerar_dados.py` com o trecho de decisão do `loop()` no `.ino` é um bom exercício de coerência.
 
 ---
 
@@ -504,7 +504,7 @@ O Streamlit abre em `http://localhost:8501`. A Tab Tempo Real só ativa a previs
 
 A regra de irrigação aparece em **quatro lugares**, todos sincronizados:
 
-1. **`src/sketch.ino`** (Fase 2) — `if (soloSeco && phOk && !encharcado && nutrientesOk) irrigar = true;`
+1. **`firmware/sketch.ino`** (Fase 2) — `if (soloSeco && phOk && !encharcado && nutrientesOk) irrigar = true;`
 2. **`scripts/consultas.sql`** (Fase 3 obrigatório, Consulta 8) — `CASE WHEN` com a mesma priorização.
 3. **`iralem1_dashboard/src/data_loader.py`** — função `classificar_condicao()` que rotula cada leitura.
 4. **`iralem1_dashboard/src/decisao.py`** — função `decisao_firmware()` consumida pelo simulador.
@@ -529,44 +529,4 @@ Quatro gráficos detalhados, um por grupo de sensores. A **timeline da bomba** (
 
 #### `dash_03_diagnostico.png` — Tab "Diagnóstico"
 
-Reproduz visualmente o `CASE WHEN` da Consulta 8: o donut classifica as 100 leituras nas 5 condições agronômicas, com o **% de solo saudável** no centro. A timeline ao lado mostra **quando** cada alerta aconteceu — o cluster de "Solo encharcado" concentrado na madrugada do dia 2 salta aos olhos, algo que a consulta SQL só revelava ordenando por `DATA_LEITURA`. A tabela abaixo lista as 28 leituras com alerta para inspeção pontual.
-
-![Tab Diagnóstico](iralem1_dashboard/prints/dash_03_diagnostico.png)
-
-#### `dash_04_tempo_real.png` — Tab "Tempo Real"
-
-A tab que **estende** a Fase 3 para além do dataset histórico: cards horizontais com a previsão OpenWeather das próximas 12 h para Curitiba/PR + simulador "Irrigar agora?" com sliders e toggles para cada sensor. É aqui que a regra do firmware encontra o clima ao vivo — fecha o opcional 1 da Fase 2, que ficou conceitual à época.
-
-![Tab Tempo Real](iralem1_dashboard/prints/dash_04_tempo_real.png)
-
-#### `dash_05_simulador_decisoes.png` — Três estados do simulador
-
-Captura composta dos três veredictos possíveis, lado a lado:
-
-- **IRRIGAR** (verde) — solo seco, pH dentro da faixa, fósforo presente, sem chuva prevista.
-- **SUSPENDER** (laranja) — todas as condições do firmware satisfeitas, **mas** a previsão indica chuva nas próximas 12 h → a dashboard recomenda esperar.
-- **NÃO IRRIGAR** (vermelho) — alguma condição do firmware falha (encharcamento, pH fora, fósforo ausente, ou N e K simultaneamente zerados).
-
-A categoria **SUSPENDER** só existe na camada Python — o firmware sozinho só conhece IRRIGAR / NÃO IRRIGAR. É o ganho concreto da dashboard sobre o ESP32 isolado.
-
-![Simulador — três estados](iralem1_dashboard/prints/dash_05_simulador_decisoes.png)
-
-#### `dash_06_mobile_geral.png` e `dash_07_mobile_diagnostico.png` — Layout responsivo
-
-Abaixo de 768 px, um bloco de `@media` no CSS do `app.py` força `flex-direction: column` nos containers de colunas do Streamlit: os 4 KPIs deixam de ficar lado a lado e empilham um por linha em largura total, e na tab Diagnóstico o donut e a timeline também empilham verticalmente. Os gráficos preservam a proporção porque foram criados com `width="stretch"` e sem largura fixa no `charts.py`.
-
-![Mobile — Visão Geral](iralem1_dashboard/prints/dash_06_mobile_geral.png)
-![Mobile — Diagnóstico](iralem1_dashboard/prints/dash_07_mobile_diagnostico.png)
-
-> Para reproduzir os prints mobile: `F12` → `Ctrl+Shift+M` → escolha "iPhone 12 Pro" no dropdown → `Ctrl+F5` para recarregar.
-
-### Vídeo demonstrativo do dashboard
-
-https://www.youtube.com/watch?v=WqOEoQaPj4g---
-
-## Créditos
-
-**Leticia Eltermann** — RM568645
-Curso de IA — FIAP — Fase 3 (Banco de Dados)
-
-GitHub: [@leticiael](https://github.com/leticiael) · Fase 2: [Farmtech-ESP32-](https://github.com/leticiael/Farmtech-ESP32-)
+Reproduz visualmente o `CASE WHEN` da Consulta 8: o donut classifica as 100 leituras nas 5 condições agronômicas, com 

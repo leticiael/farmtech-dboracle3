@@ -5,7 +5,7 @@ Gera dados_sensores_fase2.csv com 100 leituras simuladas dos sensores do
 sistema de irrigacao de mudas de Araucaria angustifolia (FarmTech Fase 2/3).
 
 A regra de decisao de irrigacao replica fielmente a logica do firmware
-embarcado no ESP32 (src/sketch.ino):
+embarcado no ESP32 (firmware/sketch.ino):
 
     ph_ok          = (ph >= 5) AND (ph <= 7)
     encharcado     = umidade > 75.0
