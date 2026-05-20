@@ -461,7 +461,7 @@ O script salva o CSV no diretório em que for executado e imprime a distribuiç�
 
 > **Acesso online:** [araucaria.streamlit.app](https://araucaria.streamlit.app/) — a dashboard está **hospedada no Streamlit Community Cloud**, gratuitamente. Não é preciso instalar nada para abrir e interagir; basta clicar no link. A integração com a OpenWeather (Tab "Tempo Real") puxa a previsão de Curitiba/PR em tempo real direto do servidor.
 
-Entrega opcional do "Programa Ir Além". Uma dashboard em **Streamlit** que consome o CSV das 100 leituras da Fase 2 e integra com a **API OpenWeather** em tempo real para recomendar irrigação considerando a previsão do tempo de Curitiba/PR. Fecha o gap apontado pelo professor na Fase 2, em que a integração com Python ficou "conceitual" — agora a regra do firmware é reproduzida e combinada com clima ao vivo num único lugar interativo.
+Entrega opcional do "Programa Ir Além". Uma dashboard em **Streamlit** 
 
 ### Visão geral
 
