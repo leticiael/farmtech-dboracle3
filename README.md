@@ -1,4 +1,5 @@
 # FarmTech Solutions — Fase 3
+<img width="2222" height="1075" alt="image" src="https://github.com/user-attachments/assets/77453f43-f96b-4653-b76b-88c5169f4ae7" />
 
 ## Banco de Dados Oracle para o Sistema de Irrigação da Araucária
 
