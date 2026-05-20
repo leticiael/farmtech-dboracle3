@@ -427,8 +427,8 @@ A Consulta 10 sugere que **08h** é a janela de maior demanda (5 acionamentos), 
 
 Vídeo de até 5 minutos cobrindo a navegação pelo repositório, a importação do CSV no Oracle SQL Developer e a execução das principais consultas.
 
-_Adicionar link do YouTube aqui_
-
+[_vídeo 
+](https://www.youtube.com/watch?v=WqOEoQaPj4g)
 ---
 
 ## Como reproduzir
